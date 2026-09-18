@@ -90,6 +90,27 @@ No admin password needed, the blank factory one works. The enabled ports survive
 a reboot, but a factory reset turns them off again, so if you're resetting the
 camera repeatedly while testing you'll be redoing this each time.
 
+## Working out which camera is which
+
+If you're matching a camera you already know against one sitting in setup mode,
+the name it advertises is a hash of its UID:
+
+```
+Reolink_ + base64(sha256(uid))[:16]
+```
+
+You can't go backwards, but you don't need to — hash the UID you've got and
+compare. Once a camera is on the network and port 80 is on, its UID comes from:
+
+```bash
+curl -s -X POST 'http://<ip>/cgi-bin/api.cgi?cmd=GetP2p&user=admin&password=' \
+  -H 'Content-Type: application/json' -d '[{"cmd":"GetP2p","action":0,"param":{}}]'
+```
+
+Don't match on the MAC you saw over Bluetooth, by the way: the camera joins wifi
+on a different one, a single octet off. Details and the exact numbers are in
+[PROTOCOL.md](PROTOCOL.md#identifiers).
+
 ## Does it actually work
 
 Yes. Tested against a Reolink E1 Pro: handshake, key exchange, credentials, and

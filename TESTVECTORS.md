@@ -68,3 +68,22 @@ For the camera models that scan a code instead:
 build("MyWifi", "secret", "ABCD1234")  ->  <QR><S>MyWifi</S><P>secret</P><C>1234</C></QR>
 build("MyWifi", "secret")              ->  <QR><S>MyWifi</S><P>secret</P></QR>
 ```
+
+## Advertised name from the UID
+
+The name a camera advertises in setup mode is a truncated hash of its P2P UID
+(the 16 characters on the body barcode, also readable over HTTP via `GetP2p`):
+
+```
+advertised_name = "Reolink_" + base64(sha256(uid))[:16]
+```
+
+```
+uid                        9527000NBAKA1H1U
+sha256(uid), base64        t1olgEqnUTlNCi6c0dAycNXVUcB+XM8Xr+Me7bahxNY=
+first 16 characters        t1olgEqnUTlNCi6c
+advertised name            Reolink_t1olgEqnUTlNCi6c
+```
+
+Handy for matching a camera you already know against one sitting in setup mode.
+Measured on one E1 Pro, so don't assume the truncation holds everywhere.

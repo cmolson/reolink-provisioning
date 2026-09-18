@@ -14,14 +14,47 @@ it's been checked against a real camera. Nothing below is a guess.
 | Service | `3d24bfff-0bcb-08bd-e5fc-0647025b2dce` |
 | Characteristic | `0000aaaa-0000-1000-8000-00805f9b34fb` (write + notify, read isn't supported) |
 
-A camera in setup mode advertises as `Reolink_<uid>`, where the uid isn't derived
-from the MAC.
+A camera in setup mode advertises as `Reolink_<h>`. The suffix isn't derived from
+the MAC, and despite also being 16 characters it isn't the UID either — it's a
+truncated hash of it. See [Identifiers](#identifiers).
 
 Watch out for this one: the advertisement carries the name but not the service
 UUID. On hardware the advertised service UUID list comes back empty, so a scan
 filtered on the service UUID never matches anything. Filter on the `Reolink` name
 prefix instead, or connect to a known address, and check for the service once
 you're connected.
+
+## Identifiers
+
+A camera has a few of these and they're easy to mix up. From the E1 Pro I tested:
+
+| what | value | how you get it |
+|---|---|---|
+| advertised BLE name | `Reolink_t1olgEqnUTlNCi6c` | the advertisement, no connection |
+| P2P UID | `9527000NBAKA1H1U` | `GetP2p` over HTTP, and the barcode on the body |
+| serial | `141484730920121` | `GetDevInfo` over HTTP |
+| Wi-Fi MAC | `ec:71:db:ef:e1:c3` | `GetLocalLink`, or your DHCP leases |
+| Bluetooth MAC | `EC:71:DB:EF:E1:C4` | the advertisement |
+
+The advertised suffix and the UID are both 16 characters, which had me convinced
+they were the same value for a while. They aren't. The suffix is the UID hashed:
+
+```
+base64(sha256("9527000NBAKA1H1U")) = t1olgEqnUTlNCi6c0dAycNXVUcB+XM8Xr+Me7bahxNY=
+                          first 16 = t1olgEqnUTlNCi6c
+```
+
+so `advertised_name = "Reolink_" + base64(sha256(uid))[:16]`.
+
+That's useful if you're matching a camera you already know against one that's
+sitting in setup mode: you can't invert the hash, but you don't need to — hash
+the UID you already have and compare. Worth knowing the Bluetooth and Wi-Fi MACs
+differ by one in the last octet too, so matching on a MAC you learned over BLE
+won't work once the camera has joined.
+
+Caveat: one camera, one firmware. I can't tell you whether the truncation or the
+hash changes on other models — my other Reolink has a UID but no Bluetooth, so it
+can't confirm anything.
 
 ## Framing
 
@@ -136,7 +169,8 @@ There's no cloud token anywhere in the Wi-Fi path. The ECDH handshake is
 unauthenticated, so none of this needs a Reolink account.
 
 The 16-character UID printed on the camera body identifies the device, it isn't a
-provisioning secret, and it plays no part in this exchange.
+provisioning secret, and it plays no part in this exchange — though the name the
+camera advertises is derived from it, see [Identifiers](#identifiers).
 
 The same service UUID, characteristic and command set turn up across different
 Reolink SoCs, so one implementation should cover most of their BLE models.

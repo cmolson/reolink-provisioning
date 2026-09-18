@@ -4,7 +4,9 @@ Check the crypto against the vectors in ../TESTVECTORS.md. No camera needed.
 
     python selftest.py
 """
+import base64
 import binascii
+import hashlib
 import sys
 
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -39,6 +41,12 @@ def check(name, got, want):
         failures.append(name)
 
 
+def advertised_name(uid):
+    """The name a camera in setup mode advertises, derived from its P2P UID."""
+    digest = hashlib.sha256(uid.encode()).digest()
+    return "Reolink_" + base64.b64encode(digest).decode()[:16]
+
+
 def main():
     client = ec.derive_private_key(CLIENT_PRIV, ec.SECP256R1())
     camera = ec.derive_private_key(CAMERA_PRIV, ec.SECP256R1())
@@ -48,6 +56,10 @@ def main():
 
     # both ends must land on the same secret
     check("ecdh is symmetric", hx(camera.exchange(ec.ECDH(), client.public_key())), EXPECT_SHARED)
+
+    check("advertised name from uid",
+          advertised_name("9527000NBAKA1H1U"),
+          "Reolink_t1olgEqnUTlNCi6c")
 
     key, iv = derive_key_iv(RANDOM1, RANDOM2, shared)
     check("aes key", hx(key), EXPECT_KEY)
