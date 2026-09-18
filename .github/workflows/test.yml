@@ -1,0 +1,36 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  selftest:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install
+        run: pip install -r python/requirements.txt
+
+      - name: Crypto vectors
+        working-directory: python
+        run: python selftest.py
+
+      - name: QR payload
+        working-directory: python
+        run: |
+          python -c "
+          from reolink_qr import build
+          got = build('MyWifi', 'secret', 'ABCD1234')
+          want = '<QR><S>MyWifi</S><P>secret</P><C>1234</C></QR>'
+          assert got == want, got
+          print('ok    qr payload')
+          "
